@@ -1,5 +1,7 @@
 # CharCraftClick: AI-Assisted One-Button Game Development Platform
 
+English | [日本語](./README_ja.md)
+
 CharCraftClick is a platform that enables you to easily create, test, and improve high-quality one-button games using interactive AI. It allows anyone to produce innovative and balanced games in a short time, even without technical knowledge.
 
 ## Project Overview
