@@ -151,9 +151,9 @@ Playerが前進しないように
 
 シンプルな指示で、ゲームバランスの調整、視覚的変更、メカニクスの変更などを行うことができる。
 
-出来上がったゲームは[ブラウザで遊べる](https://abagames.github.io/ChatCraftClick/sample-deep-diver.html)。
+出来上がったゲームは[ブラウザで遊べる](https://abagames.github.io/chat-craft-click/sample-deep-diver.html)。
 
-[![deep-diver](./docs/screenshot-deep-diver.gif)](https://abagames.github.io/ChatCraftClick/sample-deep-diver.html)
+[![deep-diver](./docs/screenshot-deep-diver.gif)](https://abagames.github.io/chat-craft-click/sample-deep-diver.html)
 
 ## Tips & トラブルシューティング
 
