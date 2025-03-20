@@ -202,13 +202,15 @@ Create a prompt for generating appropriate BGM for this game using an AI music g
 ```
 
 ```
-List the necessary sound effects for this game as pairs of names and prompts to give to a sound effect generation AI
+List the necessary sound effects for this game as
+pairs of names and prompts to give to a sound effect generation AI
 ```
 
 Generate the BGM as `bgm.mp3` and sound effects as `[name].mp3` and place them in the `audios` folder. The `main.js` of the above game is attached as a reference example. Use the following prompt to add audio file playback logic:
 
 ```
-Add BGM and sound effect playback code similar to `main.js`. You don't need to implement the GameAudio class as it will be provided externally
+Add BGM and sound effect playback code similar to `main.js`.
+You don't need to implement the GameAudio class as it will be provided externally
 ```
 
 The [GameAudio class][./docs/utils/game-audio.js] is a utility class for playing audio. Load this file from within the `index.html` file to use it.
