@@ -180,16 +180,24 @@ Examples of games you can create using this platform:
 
    - Tap to rise
 
+https://github.com/user-attachments/assets/e180b085-ce42-4254-8339-80a8118d6372
+
 2. **burger-stack**: Drop burger ingredients with good timing. Beware of crosswinds
 
    - Tap to drop ingredients
+
+https://github.com/user-attachments/assets/03cec4ca-abf0-4758-8e04-f2f2e876ac1d
 
 3. **orbit-jumper**: Travel across planetary orbits. Orbit moving planets to replenish fuel
 
    - Tap to jump out of orbit
 
+https://github.com/user-attachments/assets/6895a186-4643-4cab-91c3-6f29189e300b
+
 4. **lava-surfing**: Ride waves of lava and collect minerals
    - Tap to jump to upper lava, hold to move to lower lava
+
+https://github.com/user-attachments/assets/5bdd06df-7e5f-44b8-8e13-ee3bc8686d11
 
 If you want to add BGM or sound effects like in these examples, the following article can be helpful:
 
