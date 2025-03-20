@@ -194,7 +194,7 @@ https://github.com/user-attachments/assets/03cec4ca-abf0-4758-8e04-f2f2e876ac1d
 
 https://github.com/user-attachments/assets/6895a186-4643-4cab-91c3-6f29189e300b
 
-4. [**lava-surfing**](https://abagames.github.io/chat-craft-click/lave-surfing/): Ride waves of lava and collect minerals
+4. [**lava-surfing**](https://abagames.github.io/chat-craft-click/lava-surfing/): Ride waves of lava and collect minerals
    - Tap to jump to upper lava, hold to move to lower lava
 
 https://github.com/user-attachments/assets/5bdd06df-7e5f-44b8-8e13-ee3bc8686d11
@@ -221,7 +221,7 @@ Add BGM and sound effect playback code similar to `main.js`.
 You don't need to implement the GameAudio class as it will be provided externally
 ```
 
-The [GameAudio class][./docs/utils/game-audio.js] is a utility class for playing audio. Load this file from within the `index.html` file to use it.
+The [GameAudio class](./docs/utils/game-audio.js) is a utility class for playing audio. Load this file from within the `index.html` file to use it.
 
 ## How the Platform Works
 

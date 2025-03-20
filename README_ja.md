@@ -200,7 +200,7 @@ https://github.com/user-attachments/assets/03cec4ca-abf0-4758-8e04-f2f2e876ac1d
 
 https://github.com/user-attachments/assets/6895a186-4643-4cab-91c3-6f29189e300b
 
-4. [**lave-surfing**](https://abagames.github.io/chat-craft-click/lave-surfing/)：溶岩の波を乗りこなしてミネラルを集めよう
+4. [**lava-surfing**](https://abagames.github.io/chat-craft-click/lava-surfing/)：溶岩の波を乗りこなしてミネラルを集めよう
 
    - タップでジャンプして上の溶岩へ、押しっぱなしで下の溶岩へ移動できる
 
@@ -226,7 +226,7 @@ BGM を`bgm.mp3`、効果音を`[名前].mp3`で生成し、`audios`ファイル
 `main.js`と同様にBGMと効果音の再生コードを追加して。GameAudioクラスは外部から与えるので実装する必要はない
 ```
 
-[GameAudio クラス][./docs/utils/game-audio.js]は、音声を再生するためのユーティリティークラスである。`index.html`ファイル内からこのファイルを読み込んで利用する。
+[GameAudio クラス](./docs/utils/game-audio.js)は、音声を再生するためのユーティリティークラスである。`index.html`ファイル内からこのファイルを読み込んで利用する。
 
 ## プラットフォームの動作原理
 
