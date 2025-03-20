@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Deep Diver - Underwater Exploration Game</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+  <style>
+    body{display:flex;flex-direction:column;align-items:center;font-family:Arial,sans-serif;margin:20px;background-color:#001a33;color:#fff}
+    h1{margin-bottom:10px;color:#4dc6ff;text-shadow:0 0 10px rgba(77,198,255,0.5)}
+    #gameContainer{margin-bottom:20px;box-shadow:0 0 20px rgba(0,128,255,0.4);border-radius:5px;overflow:hidden}
+    #controls{margin-bottom:20px;text-align:center;padding:10px;background-color:rgba(0,64,128,0.6);border-radius:5px;width:400px}
+    #stats{width:400px;padding:10px;background-color:rgba(0,64,128,0.6);border-radius:5px;margin-top:10px;display:flex;justify-content:space-between}
+    #airMeter{margin-top:10px;width:400px;height:20px;background-color:rgba(0,64,128,0.6);border-radius:5px;overflow:hidden}
+    #airLevel{height:100%;background-color:#4dc6ff;width:100%;transition:width 0.3s}
+  </style>
+</head>
+<body>
+  <h1>Deep Diver</h1>
+  <div id="controls">
+    <p><strong>Controls:</strong> Press and hold to swim upward, release to sink!</p>
+  </div>
+  <div id="gameContainer"></div>
+  <div id="airMeter"><div id="airLevel"></div></div>
+  <div id="stats">
+    <div>High Score: <span id="highScore">0</span></div>
+    <div>Last Score: <span id="lastScore">0</span></div>
+  </div>
+  <script>
+    const GAME_WIDTH = 400;
+    const GAME_HEIGHT = 400;
+    let score = 0, highScore = 0, lastScore = 0, gameTime = 0, difficulty = 1;
+    let gameOver = true, gameStarted = false, gameOverCooldown = 0;
+    let airSupply = 100, turbulenceEffect = 0, screenShakeAmount = 0;
+    let distanceTraveled = 0, tutorialShown = false;
+    
+    const button = {
+      pressed: false, justPressed: false, justReleased: false, prevState: false, heldTime: 0,
+      update() {
+        this.justPressed = this.pressed && !this.prevState;
+        this.justReleased = !this.pressed && this.prevState;
+        this.heldTime = this.pressed ? this.heldTime + 1 : 0;
+        this.prevState = this.pressed;
+      }
+    };
+    
+    function createPool() {
+      return {
+        items: [],
+        add(item) { this.items.push(item); return item; },
+        processAndFilterItems(callback, predicate) {
+          for (let i = this.items.length - 1; i >= 0; i--) {
+            const item = this.items[i];
+            if (callback) callback(item, i);
+            if (predicate && predicate(item, i)) this.items.splice(i, 1);
+          }
+        },
+        clear() { this.items = []; }
+      };
+    }
+    
+    function collideRects(x1, y1, w1, h1, x2, y2, w2, h2) {
+      return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+    }
+    
+    function collideCircles(x1, y1, r1, x2, y2, r2) {
+      const dx = x2 - x1, dy = y2 - y1;
+      return Math.sqrt(dx * dx + dy * dy) < r1 + r2;
+    }
+    
+    function randomRange(min, max) { return min + Math.random() * (max - min); }
+    function randomInt(min, max) { return Math.floor(min + Math.random() * (max - min + 1)); }
+    function lerp(start, end, amt) { return (1 - amt) * start + amt * end; }
+    
+    const caveSections = createPool();
+    const treasures = createPool();
+    const powerUps = createPool();
+    const bubbles = createPool();
+    const particles = createPool();
+    
+    let player = {
+      x: 100, y: 200, width: 30, height: 20,
+      scrollSpeed: 1.5, speedY: 0, targetSpeedY: 0,
+      acceleration: 0.2, maxUpSpeed: -3, maxDownSpeed: 2,
+      rotationAngle: 0, invulnerable: false, invulnerabilityTimer: 0,
+      update() {
+        if (button.pressed) {
+          this.targetSpeedY = this.maxUpSpeed;
+          if (button.heldTime > 90) {
+            turbulenceEffect = Math.min(turbulenceEffect + 0.02, 1);
+          }
+        } else {
+          this.targetSpeedY = this.maxDownSpeed;
+          turbulenceEffect = Math.max(turbulenceEffect - 0.05, 0);
+        }
+        
+        this.speedY = lerp(this.speedY, this.targetSpeedY, this.acceleration);
+        if (turbulenceEffect > 0) {
+          this.speedY += sin(frameCount * 0.5) * turbulenceEffect * 0.5;
+        }
+        
+        this.y += this.speedY;
+        // Keep x position fixed
+        this.y = constrain(this.y, 20, height - 20);
+        this.rotationAngle = lerp(this.rotationAngle, this.speedY * 0.1, 0.2);
+        
+        if (this.invulnerable) {
+          this.invulnerabilityTimer--;
+          if (this.invulnerabilityTimer <= 0) this.invulnerable = false;
+        }
+        
+        if (frameCount % 8 === 0) {
+          bubbles.add({
+            x: this.x - this.width/2,
+            y: this.y - 5 + random(-5, 5),
+            size: random(2, 5),
+            speed: random(0.5, 1.5),
+            opacity: 255,
+            life: random(30, 60)
+          });
+        }
+      },
+      draw() {
+        push();
+        translate(this.x, this.y);
+        rotate(this.rotationAngle);
+        
+        if (!(this.invulnerable && frameCount % 6 < 3)) {
+          fill(30, 144, 255);
+          noStroke();
+          ellipse(-5, 0, this.width, this.height);
+          
+          fill(0, 119, 190);
+          triangle(-15, 0, -25, -8, -25, 8);
+          
+          fill(220, 220, 220);
+          ellipse(5, 0, 20, 20);
+          
+          fill(255, 213, 170);
+          ellipse(5, 0, 15, 15);
+          
+          stroke(100);
+          strokeWeight(2);
+          noFill();
+          bezier(-5, -8, -10, -15, 0, -15, 5, -8);
+        }
+        pop();
+      },
+      hit(damage) {
+        if (!this.invulnerable) {
+          airSupply -= damage;
+          screenShakeAmount = damage * 0.5;
+          this.invulnerable = true;
+          this.invulnerabilityTimer = 30;
+          
+          for (let i = 0; i < 10; i++) {
+            particles.add({
+              x: this.x, y: this.y,
+              vx: random(-2, 2), vy: random(-2, 2),
+              size: random(2, 5),
+              color: color(255, 255, 255, 200),
+              life: random(10, 20)
+            });
+          }
+        }
+      }
+    };
+    
+    function addScore(points) { score += points; }
+    
+    function endGame() {
+      gameOver = true;
+      gameStarted = true;
+      gameOverCooldown = 60;
+      lastScore = score;
+      if (score > highScore) highScore = score;
+      document.getElementById('highScore').textContent = highScore;
+      document.getElementById('lastScore').textContent = lastScore;
+    }
+    
+    function resetGame() {
+      score = 0; gameTime = 0; difficulty = 1; gameOver = false;
+      airSupply = 100; turbulenceEffect = 0; screenShakeAmount = 0;
+      distanceTraveled = 0; 
+      
+      player.x = 100; player.y = 200; player.speedY = 0; 
+      player.scrollSpeed = 1.5; player.targetSpeedY = 0; player.invulnerable = false;
+      
+      caveSections.clear(); treasures.clear(); 
+      powerUps.clear(); bubbles.clear(); particles.clear();
+      
+      createInitialCave();
+      
+      document.getElementById('highScore').textContent = highScore;
+      document.getElementById('lastScore').textContent = lastScore;
+      updateAirDisplay();
+    }
+    
+    function updateAirDisplay() {
+      const airEl = document.getElementById('airLevel');
+      airEl.style.width = `${airSupply}%`;
+      
+      if (airSupply < 20) {
+        airEl.style.backgroundColor = '#ff4d4d';
+      } else if (airSupply < 50) {
+        airEl.style.backgroundColor = '#ffcc00';
+      } else {
+        airEl.style.backgroundColor = '#4dc6ff';
+      }
+    }
+    
+    function createInitialCave() {
+      let lastX = -50;
+      for (let i = 0; i < 5; i++) {
+        const sectionWidth = randomInt(100, 150);
+        const gapHeight = randomInt(150, 200);
+        const centerY = height/2 + randomInt(-50, 50);
+        
+        caveSections.add({
+          x: lastX,
+          topY: centerY - gapHeight/2,
+          bottomY: centerY + gapHeight/2,
+          width: sectionWidth,
+          passed: false,
+          difficulty: 1
+        });
+        
+        lastX += sectionWidth;
+      }
+    }
+    
+    function generateNewCaveSection() {
+      let lastSection = null;
+      let farthestX = 0;
+      
+      caveSections.items.forEach(section => {
+        if (section.x + section.width > farthestX) {
+          farthestX = section.x + section.width;
+          lastSection = section;
+        }
+      });
+      
+      if (!lastSection) return;
+      
+      const sectionWidth = randomInt(80, 120);
+      const difficultyFactor = Math.min(difficulty * 0.6, 3);
+      const gapHeight = Math.max(80, 200 - (difficultyFactor * 25));
+      
+      const lastCenterY = (lastSection.topY + lastSection.bottomY) / 2;
+      const maxMove = 40 + (difficultyFactor * 10);
+      const centerY = constrain(
+        lastCenterY + randomInt(-maxMove, maxMove),
+        gapHeight/2 + 20,
+        height - gapHeight/2 - 20
+      );
+      
+      caveSections.add({
+        x: farthestX,
+        topY: centerY - gapHeight/2,
+        bottomY: centerY + gapHeight/2,
+        width: sectionWidth,
+        passed: false,
+        difficulty: difficulty
+      });
+      
+      if (random() < 0.3) {
+        const treasureCount = randomInt(1, 3);
+        
+        for (let i = 0; i < treasureCount; i++) {
+          const treasureX = farthestX + randomInt(10, sectionWidth - 10);
+          const treasureY = centerY + randomInt(-gapHeight/3, gapHeight/3);
+          
+          treasures.add({
+            x: treasureX, y: treasureY, size: 15,
+            value: Math.floor(5 * difficultyFactor),
+            rotation: 0, rotationSpeed: random(-0.05, 0.05),
+            collected: false,
+            pulseAmount: 0, pulseDirection: 1
+          });
+        }
+      }
+      
+      if (random() < 0.1) {
+        const powerUpX = farthestX + randomInt(10, sectionWidth - 10);
+        const powerUpY = centerY + randomInt(-gapHeight/3, gapHeight/3);
+        const type = random() < 0.7 ? 0 : 1;
+        
+        powerUps.add({
+          x: powerUpX, y: powerUpY, size: 20, type: type,
+          collected: false, pulseAmount: 0, pulseDirection: 1
+        });
+      }
+    }
+    
+    function updateGame() {
+      distanceTraveled += player.scrollSpeed;
+      
+      if (frameCount % 300 === 0) {
+        difficulty += 0.1;
+      }
+      
+      let offsetX = 0, offsetY = 0;
+      if (screenShakeAmount > 0) {
+        offsetX = random(-screenShakeAmount, screenShakeAmount);
+        offsetY = random(-screenShakeAmount, screenShakeAmount);
+        screenShakeAmount *= 0.9;
+      }
+      translate(offsetX, offsetY);
+      
+      if (caveSections.items.length < 7) {
+        generateNewCaveSection();
+      }
+      
+      player.update();
+      
+      caveSections.processAndFilterItems(
+        section => {
+          section.x -= player.scrollSpeed;
+          
+          noStroke();
+          fill(21, 46, 80);
+          rect(section.x, 0, section.width, section.topY);
+          rect(section.x, section.bottomY, section.width, height - section.bottomY);
+          
+          fill(30, 59, 100);
+          for (let y = 10; y < height; y += 30) {
+            if (y < section.topY) {
+              ellipse(
+                section.x + random(0, section.width),
+                y + sin(frameCount * 0.01 + y) * 3,
+                random(5, 15)
+              );
+            }
+            
+            if (y > section.bottomY) {
+              ellipse(
+                section.x + random(0, section.width),
+                y + sin(frameCount * 0.01 + y) * 3,
+                random(5, 15)
+              );
+            }
+          }
+          
+          if (!player.invulnerable && 
+              ((player.y - player.height/2 < section.topY && 
+                player.x + player.width/2 > section.x && 
+                player.x - player.width/2 < section.x + section.width) || 
+               (player.y + player.height/2 > section.bottomY && 
+                player.x + player.width/2 > section.x && 
+                player.x - player.width/2 < section.x + section.width))) {
+            
+            const damage = 5 + Math.abs(player.speedY) * 2;
+            player.hit(damage);
+          }
+          
+          if (!section.passed && player.x > section.x + section.width) {
+            section.passed = true;
+            addScore(Math.floor(3 * section.difficulty));
+          }
+        },
+        section => section.x + section.width < -50
+      );
+      
+      treasures.processAndFilterItems(
+        treasure => {
+          treasure.x -= player.scrollSpeed;
+          treasure.rotation += treasure.rotationSpeed;
+          treasure.pulseAmount += 0.01 * treasure.pulseDirection;
+          if (treasure.pulseAmount > 0.2 || treasure.pulseAmount < 0) {
+            treasure.pulseDirection *= -1;
+          }
+          
+          push();
+          translate(treasure.x, treasure.y);
+          rotate(treasure.rotation);
+          
+          noStroke();
+          fill(255, 215, 0, 100);
+          ellipse(0, 0, treasure.size + 10 + treasure.pulseAmount * 20);
+          
+          fill(255, 215, 0);
+          ellipse(0, 0, treasure.size);
+          
+          fill(200, 170, 0);
+          textSize(8);
+          textAlign(CENTER, CENTER);
+          text("$", 0, 0);
+          pop();
+          
+          if (!treasure.collected &&
+              collideCircles(
+                player.x, player.y, player.width/2, 
+                treasure.x, treasure.y, treasure.size/2
+              )) {
+            treasure.collected = true;
+            addScore(treasure.value);
+            
+            for (let i = 0; i < 15; i++) {
+              particles.add({
+                x: treasure.x, y: treasure.y,
+                vx: random(-2, 2), vy: random(-2, 2),
+                size: random(3, 6),
+                color: color(255, 215, 0, 200),
+                life: random(20, 40)
+              });
+            }
+          }
+        },
+        treasure => treasure.collected || treasure.x < -50
+      );
+      
+      powerUps.processAndFilterItems(
+        powerUp => {
+          powerUp.x -= player.scrollSpeed;
+          
+          powerUp.pulseAmount += 0.015 * powerUp.pulseDirection;
+          if (powerUp.pulseAmount > 0.3 || powerUp.pulseAmount < 0) {
+            powerUp.pulseDirection *= -1;
+          }
+          
+          push();
+          translate(powerUp.x, powerUp.y);
+          
+          noStroke();
+          if (powerUp.type === 0) {
+            fill(100, 200, 255, 100);
+          } else {
+            fill(255, 100, 100, 100);
+          }
+          ellipse(0, 0, powerUp.size + 15 + powerUp.pulseAmount * 30);
+          
+          if (powerUp.type === 0) {
+            fill(150, 150, 150);
+            rect(-10, -8, 20, 16, 3);
+            
+            fill(80, 80, 80);
+            rect(-12, -3, 4, 6, 1);
+            
+            noStroke();
+            fill(100, 200, 255);
+            ellipse(-5, 0, 4, 4);
+            ellipse(0, 0, 6, 6);
+            ellipse(5, 0, 3, 3);
+          } else {
+            fill(255, 100, 100);
+            beginShape();
+            vertex(-8, -8);
+            vertex(8, 0);
+            vertex(-8, 8);
+            endShape(CLOSE);
+            
+            fill(255, 200, 0);
+            beginShape();
+            vertex(-4, -4);
+            vertex(4, 0);
+            vertex(-4, 4);
+            endShape(CLOSE);
+          }
+          pop();
+          
+          if (!powerUp.collected &&
+              collideCircles(
+                player.x, player.y, player.width/2, 
+                powerUp.x, powerUp.y, powerUp.size/2
+              )) {
+            powerUp.collected = true;
+            
+            if (powerUp.type === 0) {
+              airSupply = Math.min(airSupply + 30, 100);
+              updateAirDisplay();
+              
+              for (let i = 0; i < 20; i++) {
+                particles.add({
+                  x: powerUp.x, y: powerUp.y,
+                  vx: random(-2, 2), vy: random(-2, 2),
+                  size: random(3, 8),
+                  color: color(100, 200, 255, 200),
+                  life: random(20, 40)
+                });
+              }
+            } else {
+              player.scrollSpeed = 3;
+              setTimeout(() => { player.scrollSpeed = 1.5; }, 5000);
+              
+              for (let i = 0; i < 20; i++) {
+                particles.add({
+                  x: powerUp.x, y: powerUp.y,
+                  vx: random(-3, 1), vy: random(-2, 2),
+                  size: random(3, 8),
+                  color: color(255, 100, 100, 200),
+                  life: random(20, 40)
+                });
+              }
+            }
+          }
+        },
+        powerUp => powerUp.collected || powerUp.x < -50
+      );
+      
+      bubbles.processAndFilterItems(
+        bubble => {
+          bubble.x -= player.scrollSpeed * 0.5;
+          bubble.y -= bubble.speed;
+          bubble.life--;
+          bubble.opacity = (bubble.life / 60) * 255;
+          
+          noStroke();
+          fill(255, 255, 255, bubble.opacity);
+          ellipse(bubble.x, bubble.y, bubble.size);
+        },
+        bubble => bubble.life <= 0 || bubble.y < 0
+      );
+      
+      particles.processAndFilterItems(
+        particle => {
+          particle.x += particle.vx;
+          particle.y += particle.vy;
+          particle.vx *= 0.95;
+          particle.vy *= 0.95;
+          particle.life--;
+          
+          particle.color.setAlpha(map(particle.life, 0, 20, 0, 200));
+          
+          noStroke();
+          fill(particle.color);
+          ellipse(particle.x, particle.y, particle.size);
+        },
+        particle => particle.life <= 0
+      );
+      
+      player.draw();
+      
+      const distance = Math.floor(distanceTraveled / 10);
+      fill(255);
+      textSize(16);
+      textAlign(RIGHT, TOP);
+      text(`${distance}m`, width - 10, 10);
+      
+      textAlign(RIGHT, TOP);
+      textSize(20);
+      text(`${score}`, width - 10, 35);
+      
+      if (frameCount % 60 === 0) {
+        airSupply -= 0.5;
+        updateAirDisplay();
+      }
+      
+      if (turbulenceEffect > 0.5 && frameCount % 15 === 0) {
+        airSupply -= 0.25 * turbulenceEffect;
+        updateAirDisplay();
+      }
+      
+      if (airSupply <= 0) {
+        endGame();
+      }
+      
+      if (turbulenceEffect > 0.5) {
+        textSize(16);
+        textAlign(CENTER);
+        fill(255, 0, 0, 150 + sin(frameCount * 0.2) * 105);
+        text("WARNING: TURBULENCE", width/2, 30);
+      }
+      
+      if (!tutorialShown && frameCount < 180) {
+        textSize(16);
+        textAlign(CENTER);
+        fill(255);
+        text("Hold to swim UP", width/2, height - 30);
+        text("Release to sink DOWN", width/2, height - 10);
+        
+        if (frameCount > 120) {
+          tutorialShown = true;
+        }
+      }
+    }
+    
+    function drawBackground() {
+      background(0, 20, 40);
+      noStroke();
+      
+      for (let i = 0; i < 5; i++) {
+        const rayX = (frameCount * 0.2 + i * 200) % (width + 400) - 200;
+        const rayWidth = 70 + sin(frameCount * 0.01 + i) * 30;
+        
+        fill(100, 140, 180, 10);
+        beginShape();
+        vertex(rayX - rayWidth/2, 0);
+        vertex(rayX + rayWidth/2, 0);
+        vertex(rayX + rayWidth, height);
+        vertex(rayX - rayWidth, height);
+        endShape(CLOSE);
+      }
+      
+      if (frameCount % 5 === 0) {
+        particles.add({
+          x: width + 20,
+          y: random(20, height - 20),
+          vx: -random(0.2, 0.5),
+          vy: random(-0.1, 0.1),
+          size: random(1, 3),
+          color: color(150, 200, 255, 100),
+          life: random(100, 200)
+        });
+      }
+    }
+    
+    function drawGameOver() {
+      fill(0, 0, 0, 200);
+      rect(0, 0, width, height);
+      
+      textAlign(CENTER);
+      fill(255);
+      textSize(32);
+      text("GAME OVER", width/2, height/2 - 40);
+      
+      textSize(24);
+      text(`Score: ${score}`, width/2, height/2);
+      
+      const distance = Math.floor(distanceTraveled / 10);
+      textSize(20);
+      text(`Distance: ${distance}m`, width/2, height/2 + 30);
+      
+      if (gameOverCooldown <= 0) {
+        textSize(18);
+        text("Press to play again", width/2, height/2 + 70);
+      }
+    }
+    
+    function setup() {
+      let canvas = createCanvas(GAME_WIDTH, GAME_HEIGHT);
+      canvas.parent('gameContainer');
+      background(0);
+      drawGameOver();
+    }
+    
+    function draw() {
+      button.update();
+      
+      if (!gameOver) {
+        drawBackground();
+        updateGame();
+      } else {
+        if (gameOverCooldown > 0) {
+          gameOverCooldown--;
+        } else if (button.justPressed) {
+          resetGame();
+        }
+        
+        if (gameStarted) {
+          drawGameOver();
+        }
+      }
+    }
+    
+    function mousePressed() {
+      button.pressed = true;
+      return false;
+    }
+    
+    function touchStarted() {
+      button.pressed = true;
+      return false;
+    }
+    
+    function keyPressed() {
+      button.pressed = true;
+      return false;
+    }
+    
+    function mouseReleased() {
+      button.pressed = false;
+      return false;
+    }
+    
+    function touchEnded() {
+      button.pressed = false;
+      return false;
+    }
+    
+    function keyReleased() {
+      button.pressed = false;
+      return false;
+    }
+  </script>
+</body>
+</html>

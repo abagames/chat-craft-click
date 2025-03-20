@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bubble Ascent</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+  <script src="../utils/game-audio.js"></script>
+  <!--
+  <script src="../utils/game-recorder.js"></script>
+  -->
+  <style>
+    body {
+      display: flex; flex-direction: column; align-items: center; font-family: Arial, sans-serif;
+      margin: 20px; background-color: #f5f5f5;
+    }
+    #gameTitle { color: #333; font-size: 32px; }
+    #gameContainer { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+    #controls {
+      text-align: center; padding: 10px; background-color: #eee; border-radius: 5px; width: 400px;
+    }
+    #stats {
+      width: 400px; padding: 10px; background-color: #eee; border-radius: 5px;
+      display: flex; justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameTitle">Bubble Ascent</div>
+  <div id="controls">
+    <p><strong>Controls:</strong> Tap to rise. Collect bubbles for power-ups! Avoid rocks or you'll be knocked down. Fall off the bottom and it's game over!</p>
+  </div>
+  <div id="gameContainer"></div>
+  <div id="stats">
+    <div>High Score: <span id="highScore">0</span></div>
+    <div>Last Score: <span id="lastScore">0</span></div>
+  </div>
+  <script src="./main.js"></script>
+</body>
+</html>

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>One-Button Game</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+    h1 { color: #333; margin-bottom: 10px; }
+    #gameContainer { margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+    #controls { margin-bottom: 20px; text-align: center; padding: 10px; background-color: #eee; border-radius: 5px; width: 400px; }
+    #stats {width: 400px; padding: 10px; background-color: #eee; border-radius: 5px; margin-top: 10px; display: flex; justify-content: space-between; }
+  </style>
+</head>
+<body>
+  <h1>One-Button Game</h1>
+  <div id="controls">
+    <p><strong>Controls:</strong> Click or tap to play!</p>
+  </div>
+  <div id="gameContainer"></div>
+  <div id="stats">
+    <div>High Score: <span id="highScore">0</span></div>
+    <div>Last Score: <span id="lastScore">0</span></div>
+  </div>
+  <script>
+    // ----- Game Setup -----
+    const GAME_WIDTH = 400;
+    const GAME_HEIGHT = 400;
+    // ----- Game State -----
+    let score = 0;
+    let highScore = 0;
+    let lastScore = 0;
+    let gameTime = 0;
+    let difficulty = 1;
+    let gameOver = true
+    let gameStarted = false;
+    let gameOverCooldown = 0;
+    // ----- One-Button Input Handler -----
+    const button = {
+      pressed: false,
+      justPressed: false,
+      justReleased: false,
+      prevState: false,
+      update() {
+        this.justPressed = this.pressed && !this.prevState;
+        this.justReleased = !this.pressed && this.prevState;
+        this.prevState = this.pressed;
+      }
+    };
+    // ----- Object Pool -----
+    // Simple collection to manage game objects
+    function createPool() {
+      return {
+        items: [],
+        add(item) {
+          this.items.push(item);
+          return item;
+        },
+        // Process all items with a callback and remove those where predicate returns true
+        processAndFilterItems(callback, predicate) {
+          for (let i = this.items.length - 1; i >= 0; i--) {
+            const item = this.items[i];
+            if (callback) {
+              callback(item, i);
+            }
+            if (predicate && predicate(item, i)) {
+              this.items.splice(i, 1);
+            }
+          }
+        },
+        clear() {
+          this.items = [];
+        }
+      };
+    }
+    // ----- Collision Detection Utilities -----
+    // Rectangle-Rectangle collision (using top-left coordinates)
+    function collideRects(x1, y1, w1, h1, x2, y2, w2, h2) {
+      return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+    }
+    // Box-Box collision (using center coordinates)
+    function collideBoxes(obj1X, obj1Y, obj1Width, obj1Height, obj2X, obj2Y, obj2Width, obj2Height) {
+      const halfWidth1 = obj1Width / 2;
+      const halfHeight1 = obj1Height / 2;
+      const halfWidth2 = obj2Width / 2;
+      const halfHeight2 = obj2Height / 2;
+      const left1 = obj1X - halfWidth1;
+      const right1 = obj1X + halfWidth1;
+      const top1 = obj1Y - halfHeight1;
+      const bottom1 = obj1Y + halfHeight1;
+      const left2 = obj2X - halfWidth2;
+      const right2 = obj2X + halfWidth2;
+      const top2 = obj2Y - halfHeight2;
+      const bottom2 = obj2Y + halfHeight2;
+      return !(right1 < left2 || left1 > right2 || bottom1 < top2 || top1 > bottom2);
+    }
+    // Circle-Circle collision
+    function collideCircles(x1, y1, r1, x2, y2, r2) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      return distance < r1 + r2;
+    }
+    // Rectangle-Circle collision
+    function collideRectCircle(rx, ry, rw, rh, cx, cy, cr) {
+      const closestX = constrain(cx, rx, rx + rw);
+      const closestY = constrain(cy, ry, ry + rh);
+      const dx = closestX - cx;
+      const dy = closestY - cy;
+      return (dx * dx + dy * dy) < (cr * cr);
+    }
+    // Utility function for constraining values
+    function constrain(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+    // Point-Rectangle collision
+    function collidePointRect(px, py, rx, ry, rw, rh) {
+      return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+    }
+    // Point-Circle collision
+    function collidePointCircle(px, py, cx, cy, cr) {
+      const dx = px - cx;
+      const dy = py - cy;
+      return (dx * dx + dy * dy) < (cr * cr);
+    }
+    // Line-Line collision
+    function collideLines(x1, y1, x2, y2, x3, y3, x4, y4) {
+      const uA = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+      const uB = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+      return (uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1);
+    }
+    // ----- Helper Functions -----
+    // Random function in range
+    function randomRange(min, max) {
+      return min + Math.random() * (max - min);
+    }
+    // Random integer in range (inclusive)
+    function randomInt(min, max) {
+      return Math.floor(min + Math.random() * (max - min + 1));
+    }
+    // Check if an object is off-screen
+    function isOffScreen(x, y, margin = 0) {
+      return x < -margin || x > width + margin || y < -margin || y > height + margin;
+    }
+    // ----- Game Object Pools -----
+    const players = createPool();
+    const obstacles = createPool();
+    const collectibles = createPool();
+    const effects = createPool();
+    // ----- Game Functions -----
+    function addScore(points) {
+      score += points;
+    }
+    function endGame() {
+      gameOver = true;
+      gameStarted = true;
+      gameOverCooldown = 30;
+      lastScore = score;
+      if (score > highScore) highScore = score;
+      document.getElementById('highScore').textContent = highScore;
+      document.getElementById('lastScore').textContent = lastScore;
+    }
+    function resetGame() {
+      score = 0;
+      gameTime = 0;
+      difficulty = 1;
+      gameOver = false;
+      players.clear();
+      obstacles.clear();
+      collectibles.clear();
+      effects.clear();
+      initGame();
+      document.getElementById('highScore').textContent = highScore;
+      document.getElementById('lastScore').textContent = lastScore;
+    }
+    // ----- Game-specific implementation -----
+    // Replace these functions with your own game logic
+    function initGame() {
+      players.add({
+        x: width / 2,
+        y: height - 50,
+        size: 20,
+        speed: 3,
+        direction: 1, 
+        update() {
+          if (button.justPressed) {
+            this.direction *= -1;
+          }
+          this.x += this.speed * this.direction;
+          if (this.x > width + this.size/2) {
+            this.x = -this.size/2;
+          } else if (this.x < -this.size/2) {
+            this.x = width + this.size/2;
+          }
+        },
+        draw() {
+          fill(0, 0, 255);
+          noStroke();
+          ellipse(this.x, this.y, this.size);
+        }
+      });
+    }
+    function updateGame() {
+      if (random() < 0.02 * difficulty) {
+        const w = randomRange(20, 40);
+        obstacles.add({
+          x: randomRange(w/2, width - w/2),
+          y: -20,
+          width: w,
+          height: 15,
+          speed: randomRange(2, 3 * difficulty)
+        });
+      }
+      if (random() < 0.01 * difficulty) {
+        collectibles.add({
+          x: randomRange(10, width - 10),
+          y: -10,
+          size: 10,
+          speed: randomRange(1, 2 * difficulty),
+          value: 10
+        });
+      }
+      players.processAndFilterItems((player) => {
+        player.update();
+        player.draw();
+      });
+      // Update and draw obstacles, remove when off-screen
+      obstacles.processAndFilterItems(
+        (obstacle) => {
+          obstacle.y += obstacle.speed;
+          fill(255, 0, 0);
+          noStroke();
+          rect(obstacle.x - obstacle.width/2, obstacle.y - obstacle.height/2, obstacle.width, obstacle.height);
+        },
+        (obstacle) => obstacle.y > height + 50
+      );
+      // Update and draw collectibles, check player collisions
+      collectibles.processAndFilterItems(
+        (coin) => {
+          coin.y += coin.speed;
+          fill(255, 255, 0);
+          noStroke();
+          ellipse(coin.x, coin.y, coin.size);
+          if (players.items.length > 0) {
+            const player = players.items[0];
+            if (collideCircles(player.x, player.y, player.size/2, coin.x, coin.y, coin.size/2)) {
+              coin.collected = true;
+              addScore(coin.value);
+              effects.add({ x: coin.x, y: coin.y, size: 5, alpha: 255, life: 30 });
+            }
+          }
+        },
+        (coin) => coin.collected || coin.y > height + 50
+      );
+      // Update and draw effects, remove when expired
+      effects.processAndFilterItems(
+        (effect) => {
+          effect.size += 0.5;
+          effect.alpha -= 255 / effect.life;
+          effect.life--;
+          noFill();
+          stroke(255, 255, 0, effect.alpha);
+          strokeWeight(2);
+          ellipse(effect.x, effect.y, effect.size);
+        },
+        (effect) => effect.life <= 0
+      );
+      // Check for collisions between player and obstacles
+      if (players.items.length > 0) {
+        const player = players.items[0];
+        for (const obstacle of obstacles.items) {
+          if (collideBoxes(
+              player.x, player.y, player.size, player.size,
+              obstacle.x, obstacle.y, obstacle.width, obstacle.height)) {
+            endGame();
+            return;
+          }
+        }
+      }
+      // Update game time and difficulty
+      gameTime++;
+      if (gameTime % 1000 === 0) difficulty += 0.1;
+    }
+    // ----- p5.js Core Functions -----
+    function setup() {
+      let canvas = createCanvas(GAME_WIDTH, GAME_HEIGHT);
+      canvas.parent('gameContainer');
+      background(0);
+      drawGameOver();
+    }
+    function draw() {
+      button.update();
+      if (!gameOver) {
+        background(0);
+        updateGame();
+        fill(255);
+        textAlign(RIGHT);
+        textSize(20);
+        text(`${score}`, width - 20, 30);
+      } else {
+        if (gameOverCooldown === 30) {
+          drawGameOver();
+        }
+        gameOverCooldown--;
+        if (gameOverCooldown <= 0 && button.justPressed) {
+          resetGame();
+        }
+      }
+    }
+    function drawGameOver() {
+      fill(0, 0, 0, 150);
+      rect(0, 0, width, height);
+      textAlign(CENTER);
+      fill(255);
+      if (gameStarted) {
+        textSize(32);
+        text("Game Over", width / 2, height / 2 - 20);
+        textSize(24);
+        text("Score: " + score, width / 2, height / 2 + 20);
+      }
+      textSize(20);
+      text("Click or tap to start", width / 2, height / 2 + 50);
+    }
+    // ----- Input Handling -----
+    function mousePressed() {
+      button.pressed = true;
+      return false; // Prevent default
+    }
+    function touchStarted() {
+      button.pressed = true;
+      return false;
+    }
+    const gameControlKeys = [32, 87, 65, 83, 68, 37, 38, 39, 40]; // Space, W, A, S, D, Left, Up Right, Down
+    function keyPressed() {
+      button.pressed = true;
+      if (gameControlKeys.includes(keyCode)) return false;
+      return true;
+    }
+    function mouseReleased() {
+      button.pressed = false;
+      return false;
+    }
+    function touchEnded() {
+      button.pressed = false;
+      return false;
+    }
+    function keyReleased() {
+      button.pressed = false;
+      if (gameControlKeys.includes(keyCode)) return false;
+      return true;
+    }
+  </script>
+</body>
+</html>

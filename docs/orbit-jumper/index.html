@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Orbit Jumper</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+  <script src="../utils/game-audio.js"></script>
+  <!--
+  <script src="../utils/game-recorder.js"></script>
+  -->
+  <style>
+    body {
+      display: flex; flex-direction: column; align-items: center; font-family: Arial, sans-serif;
+      margin: 20px; background-color: #f5f5f5;
+    }
+    h1 { color: #333; margin-bottom: 10px; }
+    #gameContainer { margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+    #controls {
+      margin-bottom: 20px; text-align: center; padding: 10px; background-color: #eee; border-radius: 5px; width: 400px;
+    }
+    #stats {
+      width: 400px; padding: 10px; background-color: #eee; border-radius: 5px; margin-top: 10px;
+      display: flex; justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <h1>Orbit Jumper</h1>
+  <div id="controls">
+    <p><strong>Controls:</strong> Click or tap to launch from orbit</p>
+  </div>
+  <div id="gameContainer"></div>
+  <div id="stats">
+    <div>High Score: <span id="highScore">0</span></div>
+    <div>Last Score: <span id="lastScore">0</span></div>
+  </div>
+  <script src="./main.js"></script>
+</body>
+</html>
