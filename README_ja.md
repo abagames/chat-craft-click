@@ -182,25 +182,25 @@ Playerが前進しないように
 
 このプラットフォームを使用して作成できるゲームの例：
 
-1. **bubble-ascent**：あなたは魚。泡を取ってパワーアップ！岩を壊そう
+1. [**bubble-ascent**](https://abagames.github.io/chat-craft-click/bubble-ascent/)：あなたは魚。泡を取ってパワーアップ！岩を壊そう
 
    - タップで上昇
 
 https://github.com/user-attachments/assets/e180b085-ce42-4254-8339-80a8118d6372
 
-2. **burger-stack**：バーガーの材料をタイミングよく落とそう。横風には注意
+2. [**burger-stack**](https://abagames.github.io/chat-craft-click/burger-stack/)：バーガーの材料をタイミングよく落とそう。横風には注意
 
    - タップで材料を落とす
 
 https://github.com/user-attachments/assets/03cec4ca-abf0-4758-8e04-f2f2e876ac1d
 
-3. **orbit-jumper**：惑星の軌道を渡り歩こう。動いている惑星を回って燃料回復
+3. [**orbit-jumper**](https://abagames.github.io/chat-craft-click/orbit-jumper/)：惑星の軌道を渡り歩こう。動いている惑星を回って燃料回復
 
    - タップで軌道から飛び出す
 
 https://github.com/user-attachments/assets/6895a186-4643-4cab-91c3-6f29189e300b
 
-4. **lave-surfing**：溶岩の波を乗りこなしてミネラルを集めよう
+4. [**lave-surfing**](https://abagames.github.io/chat-craft-click/lave-surfing/)：溶岩の波を乗りこなしてミネラルを集めよう
 
    - タップでジャンプして上の溶岩へ、押しっぱなしで下の溶岩へ移動できる
 
